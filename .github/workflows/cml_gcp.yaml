@@ -1,0 +1,83 @@
+name: cml_workflow_gcp
+
+on: [pull_request]
+
+jobs:
+  deploy-runner:
+    runs-on: [ubuntu-latest]
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - uses: iterative/setup-cml@v1
+
+      - name: deploy
+        shell: bash
+        env:
+          REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS_DATA: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_DATA }}
+        run: |
+          ls
+          cml runner \
+          --cloud gcp \
+          --cloud-region europe-west4-b \
+          --cloud-type=m+t4 \
+          --cloud-hdd-size 64 \
+          --labels=cml-runner
+
+  run:
+    needs: deploy-runner
+    runs-on: [cml-runner]
+    container:
+      image: docker://iterativeai/cml
+      options: --gpus all
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.6'
+
+    - name: cml
+      env:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        GOOGLE_API_PW: ${{ secrets.GOOGLE_API_PW }}
+        CI_COMMIT_MESSAGE: Continuous Integration Build Artifacts
+        CI_COMMIT_AUTHOR: Continuous Integration
+      run: |        
+        pip install -r requirements.txt
+        # Pull dataset with DVC
+        echo "Pulling data from DVC"
+        dvc pull
+
+        # Reproduce pipeline
+        echo "Reproducing pipeline"
+        dvc repro
+
+        # Use DVC metrics diff to compare metrics to master
+        git fetch --prune --unshallow
+        echo "# Report for training launched on GCP" > report.md
+        echo "# Metrics" >> report.md
+        dvc metrics diff --show-md main >> report.md
+
+        # Add confusion matrix figure to report
+        echo "# Confusion Matrix" >> report.md
+        echo '![](./confusion_matrix.png)' >> report.md
+
+        # Add loss figure to report
+        dvc plots diff --target loss.csv --show-vega main > vega.json
+        echo "# Loss functions" >> report.md
+        vl2png vega.json -s 1.3 > vega.png
+        echo '![](./vega.png)' >> report.md
+        cml comment create report.md
+        
+        # Push model on PR
+        cml ci
+        git add model/
+        git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+        git push
