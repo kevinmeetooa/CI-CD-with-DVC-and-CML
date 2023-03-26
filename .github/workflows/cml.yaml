@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - uses: iterative/setup-cml@v1
 
@@ -30,21 +30,12 @@ jobs:
           --output credentials.json credentials.json.gpg
           
           pip install -r requirements.txt
-          
-          # Pull dataset with DVC
-          echo "Pulling data from DVC"
-          dvc pull
-
-          # Reproduce pipeline
-          echo "Reproducing pipeline"
-          dvc repro
 
           # Use DVC metrics diff to compare metrics to master
-          cml ci
+          git fetch --prune --unshallow
           dvc metrics diff --show-md main >> report.md
 
           # Add confusion matrix figure to report
-          echo '![](./confusion_matrix.png)' >> report.md
 
           # Add loss figure to report
           dvc plots diff --target loss.csv --show-vega main > vega.json
@@ -53,6 +44,7 @@ jobs:
           cml comment create report.md
           
           # Push model on PR
+          cml ci
           git add model/
           git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
           git push
