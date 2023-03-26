@@ -1,13 +1,15 @@
+import csv
 import json
 import numpy as np
 import tensorflow as tf
+
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 train_path = "MNIST/train"
 test_path = "MNIST/test"
 
-train_datagen = ImageDataGenerator(rescale=1. / 255)  # randomly flip images
+train_datagen = ImageDataGenerator(rescale=1. / 255)
 
 test_datagen = ImageDataGenerator(rescale=1. / 255)
 
@@ -71,3 +73,18 @@ fig = ConfusionMatrixDisplay(confusion_matrix=cm,
 fig.plot(cmap='Blues')
 fig.figure_.suptitle('Confusion matrix on the test set')
 fig.figure_.savefig('confusion_matrix.png')
+
+
+# ========== Write loss values to csv ===========
+loss_csv_filename = 'loss.csv'
+loss_values = history.history['loss']
+
+with open(loss_csv_filename, mode='w', newline='') as csv_file:
+    writer = csv.writer(csv_file)
+
+    # Write the header row to the CSV file
+    writer.writerow(['loss'])
+
+    # Write each float value as a row in the CSV file
+    for loss in loss_values:
+        writer.writerow([loss])
