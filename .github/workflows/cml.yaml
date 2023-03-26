@@ -18,9 +18,11 @@ jobs:
           python-version: '3.x'
 
       - name: cml
-        env:
+                env:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_API_PW: ${{ secrets.GOOGLE_API_PW }}
+          CI_COMMIT_MESSAGE: Continuous Integration Build Artifacts
+          CI_COMMIT_AUTHOR: Continuous Integration
         run: |
           gpg --quiet --batch --yes --decrypt --passphrase="$GOOGLE_API_PW" \
           --output credentials.json credentials.json.gpg
@@ -48,6 +50,9 @@ jobs:
           echo '![](./vega.png)' >> report.md
           cml comment create report.md
           
+          # Push model on PR
+          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+          git config --global user.email "username@users.noreply.github.com"
           git add model/
-          git commit -m "Add model"
+          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
           git push
