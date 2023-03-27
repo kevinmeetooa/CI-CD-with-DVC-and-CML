@@ -2,5 +2,6 @@ scikit-learn
 pandas
 matplotlib
 numpy
+nvidia-cudnn-cu11
 tensorflow
 

@@ -8,6 +8,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 train_path = "MNIST/train"
 test_path = "MNIST/test"
+print("List of CPU/GPUs: ", tf.config.list_physical_devices())
 
 train_datagen = ImageDataGenerator(rescale=1. / 255)
 
@@ -90,4 +91,4 @@ with open(loss_csv_filename, mode='w', newline='') as csv_file:
         writer.writerow([loss])
 
 # ============ Export model ==============
-model.save('model/')
+model.export('model/')
